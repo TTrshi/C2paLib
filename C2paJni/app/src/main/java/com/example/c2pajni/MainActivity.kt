@@ -5,8 +5,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import android.util.Log
 
-class MainActivity : AppCompatActivity(), ResultCallback {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -17,22 +18,14 @@ class MainActivity : AppCompatActivity(), ResultCallback {
             insets
         }
 
-        // コールバックを登録
-        NativeBridge.registerCallback(this)
+        NativeBridge.init()
 
-        // Kotlin → Rust
-        val res1 = NativeBridge.callRustFunction("First call from Kotlin")
-        println(res1)  // => counter = 1
-
-        // Rust → Kotlin（コールバック）→ Rust
-        NativeBridge.triggerKotlinFromRust()
-    }
-
-    override fun onResult(msg: String) {
-        println("Kotlin received from Rust: $msg")
-
-        // コールバックの中で再度 Rust を呼び出す（同じ AppState にアクセス）
-        val res = NativeBridge.callRustFunction("Back to Rust")
-        println("Rust replied: $res")  // counter が増加
+//        NativeBridge.registerCallback(object : ResultCallback {
+//            override fun onResult(msg: String) {
+//                Log.i("JNI", "Rustからの結果: $msg")
+//            }
+//        })
+//
+//        NativeBridge.incrementCounter("Hello")
     }
 }
