@@ -1,0 +1,33 @@
+[package]
+name = "rust_project"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+
+c2pa = { version = "0.63.0", default-features = false, features = [
+    "rust_native_crypto",
+    "add_thumbnails",
+    "file_io",
+    #"serialize_thumbnails",
+    #"no_interleaved_io",
+    #"fetch_remote_manifests",
+    "json_schema",
+    #"pdf",
+]}
+
+serde = { version = "1.0", features = ["derive"] }
+chrono = "0.4"
+#exif = "0.8"
+serde_json = { version = "1.0.117", features = ["preserve_order"] }
+toml = "0.8.23"
+
+
+
+
+mp4parse = "0.17.0"
+sha2 = "0.10.9"
+hex = "0.4.3"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"

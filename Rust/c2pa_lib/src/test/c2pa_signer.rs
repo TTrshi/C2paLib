@@ -162,18 +162,41 @@ impl C2paSigner {
         builder.sign_file(&*signer, &source, &dest).unwrap();
 
         let reader = Reader::from_file(&dest).unwrap();
-        let unsigned_like = "target/unsigned_like.jpg"; // output with embedded manifest
-        Self::extract_jpeg_without_c2pa(output_file_path, unsigned_like).unwrap();
+        // let unsigned_like = "target/unsigned_like.jpg"; // output with embedded manifest
+        // Self::extract_jpeg_without_c2pa(output_file_path, unsigned_like).unwrap();
 
-        // ハッシュを計算
-        let h1 = Self::sha256_all_bytes(output_file_path).unwrap();
-        let h2 = Self::sha256_all_bytes(unsigned_like).unwrap();
-        println!("original: {:x?}", h1);
-        println!("from signed: {:x?}", h2);
+        // // ハッシュを計算
+        // let h1 = Self::sha256_all_bytes(output_file_path).unwrap();
+        // let h2 = Self::sha256_all_bytes(unsigned_like).unwrap();
+        // println!("original: {:x?}", h1);
+        // println!("from signed: {:x?}", h2);
         
         // example of how to print out the whole manifest as json
-        println!("{reader}\n");
-        assert_ne!(reader.validation_state(), ValidationState::Invalid);
+        // println!("{reader}\n");
+        // assert_ne!(reader.validation_state(), ValidationState::Invalid);
+    }
+
+    pub fn comp_hash_jpeg(&self, signed_file_path: &str, unsigned_like: &str) {
+        Self::extract_jpeg_without_c2pa(signed_file_path, unsigned_like).unwrap();
+
+        // ハッシュを計算
+        let h1 = Self::sha256_all_bytes(signed_file_path).unwrap();
+        let h2 = Self::sha256_all_bytes(unsigned_like).unwrap();
+        println!("original: {:x?}", hex::encode(h1));
+        println!("from signed: {:x?}", hex::encode(h2));
+    }
+
+    pub fn comp_hash_mp4(&self, signed_file_path: &str, origin_file_path: &str) {
+        let signed_hash = Self::hash_mp4_boxes(signed_file_path).unwrap();
+        let origin_hash = Self::hash_mp4_boxes(origin_file_path).unwrap();
+
+        for (key, value) in origin_hash.iter() {
+            println!("original   : {:x?}", hex::encode(value));
+        }
+        // println!("");
+        for (key, value) in signed_hash.iter() {
+            println!("from signed: {:x?}", hex::encode(value));
+        }
     }
 
     fn sha256_all_bytes<P: AsRef<Path>>(path: P) -> std::io::Result<[u8; 32]> {
