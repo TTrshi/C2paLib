@@ -59,6 +59,7 @@ pub extern "system" fn Java_com_example_c2pajni_NativeBridge_triggerKotlinFromRu
 }
 */
 
+/*
 use jni::{
     objects::{GlobalRef, JClass, JObject, JString},
     JNIEnv, JavaVM,
@@ -146,3 +147,162 @@ pub extern "system" fn Java_com_example_c2pajni_NativeBridge_incrementCounter(
         }
     }
 }
+*/
+
+use jni::objects::{GlobalRef, JObject, JString};
+use jni::sys::jlong;
+use jni::{JNIEnv, JavaVM};
+use once_cell::sync::OnceCell;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u64)]
+enum CallbackKind {
+    OnSuccess = 1,
+    OnError = 2,
+    OnProgress = 3,
+}
+
+// let mut map: HashMap<CallbackKind, String> = HashMap::new();
+// map.insert(CallbackKind::OnSuccess, "Success Callback".to_string());
+
+// let value = map.get(&CallbackKind::OnSuccess).unwrap();
+// println!("{}", value); // => Success Callback
+
+/// アプリ全体の状態
+#[derive(Debug)]
+pub struct AppState {
+    pub counter: u64,
+}
+
+/// 1つのコールバック情報
+#[derive(Debug, Clone)]
+pub struct Callback {
+    pub obj: Arc<GlobalRef>,
+    pub kind: String,
+}
+
+/// JNI 側の全体コンテキスト
+pub struct CallbackManager {
+    pub vm: JavaVM,
+    pub state: RwLock<AppState>,
+    pub callbacks: Mutex<HashMap<u64, Callback>>,
+    pub next_id: Mutex<u64>,
+}
+
+/// シングルトンとして保持
+static MANAGER: OnceCell<Arc<CallbackManager>> = OnceCell::new();
+
+impl CallbackManager {
+    /// Rust API からも呼べる register
+    pub fn register_callback(&self, env: &JNIEnv, callback: JObject, kind: String) -> u64 {
+        let global = env.new_global_ref(callback).unwrap();
+        let mut id_guard = self.next_id.lock().unwrap();
+        let id = *id_guard;
+        *id_guard += 1;
+
+        self.callbacks.lock().unwrap().insert(
+            id,
+            Callback {
+                obj: Arc::new(global),
+                kind,
+            },
+        );
+
+        id
+    }
+
+    /// Rust API からも呼べる call
+    pub fn call_callback(&self, id: u64, message: &str) {
+        let env = self.vm.attach_current_thread().unwrap();
+
+        if let Some(cb) = self.callbacks.lock().unwrap().get(&id).cloned() {
+            let jmsg = env.new_string(message).unwrap();
+            let _ = env.call_method(cb.obj.as_obj(), "onResult", "(Ljava/lang/String;)V", &[jmsg.into()]);
+        } else {
+            eprintln!("Callback with id {} not found", id);
+        }
+    }
+
+    /// Rust API からも呼べる unregister
+    pub fn unregister_callback(&self, id: u64) {
+        self.callbacks.lock().unwrap().remove(&id);
+    }
+
+    /// シングルトンを取得
+    pub fn instance() -> Arc<Self> {
+        MANAGER.get().expect("CallbackManager not initialized").clone()
+    }
+
+    /// 初期化
+    pub fn init(env: &JNIEnv) -> Arc<Self> {
+        let vm = env.get_java_vm().unwrap();
+        let manager = Arc::new(CallbackManager {
+            vm,
+            state: RwLock::new(AppState { counter: 0 }),
+            callbacks: Mutex::new(HashMap::new()),
+            next_id: Mutex::new(1),
+        });
+        MANAGER.set(manager.clone()).ok();
+        manager
+    }
+}
+
+/// --- JNI 関数 ---
+
+#[no_mangle]
+pub extern "system" fn Java_com_example_c2pajni_NativeBridge_initManager(
+    env: JNIEnv,
+    _this: JObject,
+) {
+    CallbackManager::init(&env);
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_example_c2pajni_NativeBridge_registerCallback(
+    env: JNIEnv,
+    _this: JObject,
+    callback: JObject,
+    kind: JString,
+) -> jlong {
+    let kind: String = env.get_string(&kind).unwrap().into();
+    let id = CallbackManager::instance().register_callback(&env, callback, kind);
+    id as jlong
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_example_c2pajni_NativeBridge_callCallback(
+    _env: JNIEnv,
+    _this: JObject,
+    id: jlong,
+    message: JString,
+) {
+    let text = unsafe { _env.get_string(&message).unwrap().into() };
+    CallbackManager::instance().call_callback(id as u64, &text);
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_example_c2pajni_NativeBridge_unregisterCallback(
+    _env: JNIEnv,
+    _this: JObject,
+    id: jlong,
+) {
+    CallbackManager::instance().unregister_callback(id as u64);
+}
+
+
+//■使用方法
+// fn rust_api_example(env: &JNIEnv, callback: JObject) {
+//     // シングルトン取得
+//     let manager = CallbackManager::instance();
+
+//     // コールバック登録
+//     let id = manager.register_callback(env, callback, "onEvent".to_string());
+
+//     // 呼び出し
+//     manager.call_callback(id, "Hello from Rust API");
+
+//     // 削除
+//     manager.unregister_callback(id);
+// }
