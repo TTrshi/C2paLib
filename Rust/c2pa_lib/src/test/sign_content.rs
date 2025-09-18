@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 
-use crate::client::c2pa_signer::C2paSigner;
+//use crate::client::c2pa_signer::C2paSigner;
 use anyhow::Result;
 use futures::future::{AbortHandle, Abortable};
 use std::time::Instant;
@@ -15,6 +15,14 @@ use tokio::{fs as other_fs, sync::mpsc};
 
 type SignResult = Result<PathBuf>;
 type SignCallback = Box<dyn FnOnce(SignResult) + Send>;
+
+use crate::client::assertion_builder::{self, AssertionBuilder};
+
+//use crate::client::c2pa_signer::SignerExecuter;
+use crate::client::media_signer_module::MediaManager;
+
+// use signer_queue::SignerQueue;
+use tokio::{runtime::Runtime, time::sleep};
 
 // struct SignRequest {
 //     input: PathBuf,
@@ -106,6 +114,7 @@ type SignCallback = Box<dyn FnOnce(SignResult) + Send>;
 //     }
 // }
 
+/*
 struct SignRequest {
     input: PathBuf,
     output: PathBuf,
@@ -239,6 +248,7 @@ impl SignerQueue {
         }
     }
 }
+*/
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
@@ -291,27 +301,38 @@ pub async fn main() -> Result<()> {
     //     // キューが終わるのを待つ例
     //     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
     // }
-
     {
-        let mut queue = SignerQueue::new();
-
-        // 3件投入
-        for i in 0..3 {
-            let input = PathBuf::from(format!("sample{i}.jpg"));
-            let output = PathBuf::from(format!("signed{i}.jpg"));
-            queue
-                .enqueue(input, output, move |res| match res {
-                    Ok(p) => println!("署名成功: {:?}", p),
-                    Err(e) => eprintln!("エラー: {e}"),
-                })
-                .await;
-        }
-
-        // 途中で強制停止
-        tokio::time::sleep(std::time::Duration::from_secs(6)).await;
-        queue.shutdown_now().await;
-        println!("強制停止しました");
+        //let rt = Runtime::new()?;
+        //rt.block_on(App::new().run());
+        MediaManager::new().run().await;
     }
+    {
+        // let assertion_builder = AssertionBuilder::default();
+        // assertion_builder.write_json();
+        // assertion_builder.read_json();
+        return Ok(())
+    }
+
+    // {
+    //     let mut queue = SignerQueue::new();
+
+    //     // 3件投入
+    //     for i in 0..3 {
+    //         let input = PathBuf::from(format!("sample{i}.jpg"));
+    //         let output = PathBuf::from(format!("signed{i}.jpg"));
+    //         queue
+    //             .enqueue(input, output, move |res| match res {
+    //                 Ok(p) => println!("署名成功: {:?}", p),
+    //                 Err(e) => eprintln!("エラー: {e}"),
+    //             })
+    //             .await;
+    //     }
+
+    //     // 途中で強制停止
+    //     tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+    //     queue.shutdown_now().await;
+    //     println!("強制停止しました");
+    // }
 
     Ok(())
 }
