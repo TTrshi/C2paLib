@@ -1,0 +1,36 @@
+# Cargo.toml の依存
+pem = "1.0"
+p256 = { version = "0.13", features = ["pkcs8", "ecdsa", "pem"] }
+pkcs8 = "0.9"
+
+
+use std::fs;
+use pem::parse_many;
+use p256::SecretKey; // p256 の SecretKey は pkcs8/SEC1 の機能を持つ（feature 必要）
+use pkcs8::LineEnding;
+
+fn sec1_pem_to_pkcs8_pem(sec1_pem_str: &str) -> anyhow::Result<String> {
+    let pems = parse_many(sec1_pem_str)?;
+    for pem in pems {
+        match pem.tag.as_str() {
+            "EC PRIVATE KEY" => {
+                // SEC1 DER を SecretKey に読み込む
+                let sk = SecretKey::from_sec1_der(&pem.contents)?;
+                // PKCS#8 PEM にエンコード（LineEnding::LF など）
+                let pkcs8_pem = sk.to_pkcs8_pem(LineEnding::LF)?;
+                return Ok(pkcs8_pem.to_string());
+            }
+            "PRIVATE KEY" => {
+                // 既に PKCS#8 ならそのまま返す
+                return Ok(pem::encode(&pem));
+            }
+            _ => continue,
+        }
+    }
+    anyhow::bail!("No private key found in PEM input");
+}
+
+// 使用例
+let sec1 = fs::read_to_string("ec_key.pem")?;
+let pkcs8_pem = sec1_pem_to_pkcs8_pem(&sec1)?;
+fs::write("ec_key_pkcs8.pem", pkcs8_pem)?;
