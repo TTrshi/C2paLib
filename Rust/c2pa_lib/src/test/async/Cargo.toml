@@ -1,0 +1,11 @@
+[package]
+name = "async_work"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.36", features = ["full"] }
+tokio-util = { version = "0.7.16" }
+once_cell = "1.21.3"
+thiserror  = "2.0.16"
+anyhow = "1.0"
