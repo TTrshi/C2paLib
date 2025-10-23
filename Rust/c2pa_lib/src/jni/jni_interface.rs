@@ -306,3 +306,36 @@ pub extern "system" fn Java_com_example_c2pajni_NativeBridge_unregisterCallback(
 //     // 削除
 //     manager.unregister_callback(id);
 // }
+
+#[no_mangle]
+pub extern "system" fn Java_com_example_MyRust_callKotlinApi(
+    env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    // Kotlinのクラス名（パッケージ + クラス名）
+    let class_name = "com/example/MyApi";
+
+    // クラスを探す
+    let cls = env.find_class(class_name).expect("Kotlinクラスが見つかりません");
+
+    // staticメソッド getMessage()Ljava/lang/String; を呼び出す
+    let method_id = env
+        .get_static_method_id(cls, "getMessage", "()Ljava/lang/String;")
+        .expect("メソッドが見つかりません");
+
+    // メソッドを実行
+    let result = env
+        .call_static_method_unchecked(cls, method_id, jni::signature::ReturnType::Object, &[])
+        .expect("メソッド呼び出しに失敗");
+
+    // Object → JString にキャスト
+    let jstr = result.l().unwrap().into();
+
+    // Rust内でStringに変換（ログ出力など）
+    let rust_str: String = env.get_string(&jstr).unwrap().into();
+    println!("Kotlinから取得した文字列: {}", rust_str);
+
+    // 呼び出し元（Kotlin）にStringを返す場合
+    let output = env.new_string(format!("Rust received: {}", rust_str)).unwrap();
+    output.into_raw()
+}
