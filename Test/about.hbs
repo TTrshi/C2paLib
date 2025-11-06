@@ -1,0 +1,26 @@
+================================================================
+Third Party Licenses
+================================================================
+
+This file lists all third-party Rust crates used in this application,
+along with their license information and full license text.
+
+----------------------------------------------------------------
+
+{{#each licenses}}
+{{#each used_by}}
+Crate: {{crate.name}} (v{{crate.version}})
+License: {{../name}}
+
+{{#if ../text}}
+{{../text}}
+{{else}}
+(No license text found)
+{{/if}}
+
+----------------------------------------------------------------
+
+{{/each}}
+{{/each}}
+
+End of license list.

@@ -1,0 +1,1 @@
+cargo about generate --target aarch64-linux-android about.hbs > licenses.txt
